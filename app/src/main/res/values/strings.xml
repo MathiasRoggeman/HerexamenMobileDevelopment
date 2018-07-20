@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Buurtmeter</string>
+    <string name="title_home">Map</string>
+    <string name="title_Data">Data</string>
+</resources>
