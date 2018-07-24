@@ -2,11 +2,11 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
 
     <item
-        android:id="@+id/map"
+        android:id="@+id/action_map"
         android:icon="@drawable/ic_public_black_24dp"
         android:title="@string/title_home" />
     <item
-        android:id="@+id/navigation_Data"
+        android:id="@+id/action_data"
         android:icon="@drawable/ic_settings_black_24dp"
         android:title="@string/title_Data" />
 

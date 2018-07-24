@@ -1,7 +1,9 @@
 package com.example.mathi.buurtmeter;
 
 import android.Manifest;
+import android.annotation.SuppressLint;
 import android.content.Context;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.drawable.Drawable;
 import android.location.Location;
@@ -61,90 +63,71 @@ public class MapActivity extends AppCompatActivity {
     private LocationListener locationListener;
     private RequestQueue mRequestQueue;
     private String urlSearch = "http://nominatim.openstreetmap.org/search?q=";
-    private String urlZones = "http://datasets.antwerpen.be/v4/gis/paparkeertariefzones.json";
+    private String urlZones = "http://datasets.antwerpen.be/v1/opendata/statistieken.json";
     private JSONObject zones;
     final ArrayList<OverlayItem> items = new ArrayList<OverlayItem>();
-
-    private BottomNavigationView.OnNavigationItemSelectedListener mOnNavigationItemSelectedListener
-            = new BottomNavigationView.OnNavigationItemSelectedListener() {
-
-        @Override
-        public boolean onNavigationItemSelected(@NonNull MenuItem item) {
-            switch (item.getItemId()) {
-                case R.id.map:
-                    mTextMessage.setText(R.string.title_home);
-                    return true;
-                case R.id.navigation_Data:
-                    mTextMessage.setText(R.string.title_Data);
-                    return true;
-            }
-            return false;
-        }
-    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        if(Build.VERSION.SDK_INT >= 23) {
+        if (Build.VERSION.SDK_INT >= 23) {
             checkPermissions();
         }
 
         // https://github.com/osmdroid/osmdroid/wiki/How-to-use-the-osmdroid-library
-        mapView = (MapView)findViewById(R.id.mapview);
+        mapView = (MapView) findViewById(R.id.mapview);
         mapView.setTileSource(TileSourceFactory.MAPNIK);
         mapView.setBuiltInZoomControls(true);
         mapView.setMultiTouchControls(true);
         mapView.getController().setZoom(18);
-        // default = meistraat
-        mapView.getController().setCenter(new GeoPoint(51.2244, 4.38566));
+        // default = grote markt
+        mapView.getController().setCenter(new GeoPoint(51.221311, 4.399160));
 
         // http://code.tutsplus.com/tutorials/an-introduction-to-volley--cms-23800
         mRequestQueue = Volley.newRequestQueue(this);
-        searchButton = (Button)findViewById(R.id.search_button);
-        searchButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                String searchString = "";
-                try {
-                    searchString = URLEncoder.encode(searchField.getText().toString(), "UTF-8");
-                }
-                catch (UnsupportedEncodingException e) {
-                    e.printStackTrace();
-                }
 
-                JsonArrayRequest jr = new JsonArrayRequest(urlSearch + searchString + "&format=json", new Response.Listener<JSONArray>() {
-                    @Override
-                    public void onResponse(JSONArray response) {
-                        try {
-                            //Log.d("edu.ap.maps", response.toString());
-                            hideSoftKeyBoard();
-                            JSONObject obj = response.getJSONObject(0);
-                            GeoPoint g = new GeoPoint(obj.getDouble("lat"), obj.getDouble("lon"));
-                            mapView.getController().setCenter(g);
+
+        BottomNavigationView bottomNavigationView = findViewById(R.id.navigation);
+        bottomNavigationView.setSelectedItemId(R.id.action_map);
+        if (bottomNavigationView != null) {
+            // Set action to perform when any menu-item is selected.
+            bottomNavigationView.setOnNavigationItemSelectedListener(
+                    new BottomNavigationView.OnNavigationItemSelectedListener() {
+                        @Override
+                        public boolean onNavigationItemSelected(@NonNull MenuItem item) {
+                            selectFragment(item);
+                            return false;
                         }
-                        catch(JSONException ex) {
-                            Log.e("be.ap.edu.mapsaver", ex.getMessage());
-                        }
-                    }
-                },new Response.ErrorListener() {
-                    @Override
-                    public void onErrorResponse(VolleyError error) {
-                        Log.e("be.ap.edu.mapsaver", error.getMessage());
-                        hideSoftKeyBoard();
-                    }
-                });
-
-                mRequestQueue.add(jr);
-            }
-        });
-
-
+                    });
         }
 
+    }
+
+    protected void selectFragment(MenuItem item) {
+
+        item.setChecked(true);
+
+        switch (item.getItemId()) {
+            case R.id.action_map:
+                // Action to perform when Home Menu item is selected.
+
+                break;
+            case R.id.action_data:
+                // Action to perform when Bag Menu item is selected.
+                Intent intent = new Intent(MapActivity.this, DataActivity.class);
+                startActivity(intent);
+                break;
+
+        }
+    }
+
+
+
+
     // http://codetheory.in/android-ontouchevent-ontouchlistener-motionevent-to-detect-common-gestures/
-    @Override
+ /*   @Override
     public boolean dispatchTouchEvent(MotionEvent ev) {
         int actionType = ev.getAction();
         switch(actionType) {
@@ -168,7 +151,7 @@ public class MapActivity extends AppCompatActivity {
         if(imm.isAcceptingText()) { // verify if the soft keyboard is open
             imm.hideSoftInputFromWindow(getCurrentFocus().getWindowToken(), 0);
         }
-    }
+    }*/
 
     // http://alienryderflex.com/polygon/
     // The basic idea is to find all edges of the polygon that span the 'x' position of the point you're testing against.
@@ -220,44 +203,6 @@ public class MapActivity extends AppCompatActivity {
         return isInside;
     }
 
-    private void findZone(GeoPoint clickPoint) {
-        try {
-            JSONArray allZones = zones.getJSONArray("data");
-            //Log.d("edu.ap.maps", String.valueOf(allZones.length()));
-
-            for(int i = 0; i < allZones.length(); i++) {
-                JSONObject obj = (JSONObject)allZones.get(i);
-                String tariefzone =  obj.getString("tariefzone");
-                String tariefkleur = obj.getString("tariefkleur");
-                ArrayList<GeoPoint> list = new ArrayList<GeoPoint>();
-                JSONObject geometry = new JSONObject(obj.getString("geometry"));
-                JSONArray coordinates = geometry.getJSONArray("coordinates");
-                // blijkbaar nog eens verpakt...
-                JSONArray coordinatesInside = coordinates.getJSONArray(0);
-                for(int j = 0; j < coordinatesInside.length(); j++) {
-                    JSONArray points = null;
-                    try {
-                        points = coordinatesInside.getJSONArray(j);
-                        GeoPoint g = new GeoPoint(points.getDouble(1), points.getDouble(0));
-                        list.add(g);
-                    }
-                    catch(JSONException ex) {
-                        Log.e("be.ap.edu.mapsaver", ex.getMessage());
-                    }
-                }
-
-                if(contains(clickPoint, list)) {
-                    this.addMarker(clickPoint);
-                    Toast.makeText(this, "Tariefzone : " + tariefzone + " Tariefkleur : " + tariefkleur, Toast.LENGTH_SHORT).show();
-                    break;
-                }
-            }
-        }
-        catch (Exception e) {
-            Log.e("edu.ap.maps", e.getMessage());
-            Log.e("edu.ap.maps", String.valueOf(e.getStackTrace()));
-        }
-    }
 
     private void addMarker(GeoPoint g) {
         OverlayItem myLocationOverlayItem = new OverlayItem("Here", "Current Position", g);
@@ -280,28 +225,8 @@ public class MapActivity extends AppCompatActivity {
         this.mapView.invalidate();
     }
 
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        // Inflate the menu; this adds items to the action bar if it is present.
-        getMenuInflater().inflate(R.menu.main, menu);
-        return true;
-    }
 
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        // Handle action bar item clicks here. The action bar will
-        // automatically handle clicks on the Home/Up button, so long
-        // as you specify a parent activity in AndroidManifest.xml.
-        Toast.makeText(this, "Menu clicked", Toast.LENGTH_SHORT).show();
-        switch (item.getItemId()) {
-            case R.id.action_settings:
-                Toast.makeText(this, "Settings clicked", Toast.LENGTH_SHORT).show();
-                return true;
 
-            default:
-                return super.onOptionsItemSelected(item);
-        }
-    }
 
     private class MyLocationListener implements LocationListener {
         @Override
@@ -320,6 +245,7 @@ public class MapActivity extends AppCompatActivity {
     // START PERMISSION CHECK
     final private int REQUEST_CODE_ASK_MULTIPLE_PERMISSIONS = 124;
 
+    @SuppressLint("NewApi")
     private void checkPermissions() {
         List<String> permissions = new ArrayList<>();
         String message = "osmdroid permissions:";
