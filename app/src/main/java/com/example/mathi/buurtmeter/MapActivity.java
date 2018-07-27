@@ -203,6 +203,13 @@ public class MapActivity extends AppCompatActivity {
         return isInside;
     }
 
+    private double getAreaScore(double lat , double lng){
+        ArrayList<double> totalResult = {};
+        Double totalScore = 0.00 ;
+
+        for(int key : )
+    }
+
 
     private void addMarker(GeoPoint g) {
         OverlayItem myLocationOverlayItem = new OverlayItem("Here", "Current Position", g);
